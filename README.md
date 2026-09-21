@@ -93,7 +93,7 @@ Projeto 01/
 │   ├── Bronze_to_Silver.ipynb
 │   ├── Silver_to_Gold.ipynb
 │   └── Gold_Analytics.ipynb
-└── evidencias/
+└── evidences/
     └── job_execucao_sucesso.png
 ```
 
