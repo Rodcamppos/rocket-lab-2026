@@ -61,7 +61,7 @@ Landing (5 CSVs + API BCB)
 Job **CineData_Pipeline** no Databricks Workflows, com 3 tasks (`to_Bronze` → `to_Silver` → `to_Gold`), dependências explícitas entre elas e agendamento diário configurado, simulando uma rotina de atualização em produção.
 
 - `job.yaml`: exportação da definição do Job
-- `evidencias/`: print da execução de sucesso do Job, mostrando as dependências entre as tarefas
+- `evidences/`: print da execução de sucesso do Job, mostrando as dependências entre as tarefas
 
 ## Desafio de Analytics
 
