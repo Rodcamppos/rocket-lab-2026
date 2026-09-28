@@ -1,6 +1,7 @@
 """Endpoints REST do domínio de filmes."""
 
 from __future__ import annotations
+from typing import Literal
 
 import math
 import re
@@ -13,6 +14,7 @@ from app.movies import repository
 from app.movies.models import DimMovie
 from app.movies.repository import MovieNotFoundError, nota_to_stars
 from app.movies.schemas import (
+    InsightsOut,
     MovieCreate,
     MovieDetail,
     MovieListItem,
@@ -77,16 +79,20 @@ async def get_movies(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     search: str | None = Query(default=None, description="Busca por título (case-insensitive)"),
+    genero: str | None = Query(default=None, description="Filtra por nome do gênero"),
+    ano: int | None = Query(default=None, ge=1870, le=2100, description="Filtra por ano"),
+    ordem: Literal["titulo", "ano", "nota"] = Query(default="titulo"),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedMovies:
     movies, total, stats = await repository.list_movies(
-        db, page=page, page_size=page_size, search=search
+        db, page=page, page_size=page_size, search=search, genero=genero, ano=ano, ordem=ordem
     )
 
     items = [
         MovieListItem(
             sk_movie_id=m.sk_movie_id,
             titulo=_clean_titulo(m.titulo),
+            url_poster=m.url_poster or m.url_backdrop,
             ano_lancamento=m.ano_lancamento,
             status_filme=m.status_filme,
             generos=[g.nome_genero for g in m.genres],
@@ -103,29 +109,34 @@ async def get_movies(
     )
 
 
+@router.get("/generos", response_model=list[str])
+async def get_generos(db: AsyncSession = Depends(get_db)) -> list[str]:
+    return await repository.list_genres(db)
+
+
+@router.get("/insights", response_model=InsightsOut)
+async def get_insights(db: AsyncSession = Depends(get_db)) -> dict:
+    return await repository.get_insights(db)
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, "Filme não encontrado")
+
+
+# As rotas com parâmetro de caminho ficam depois de /generos e /insights,
+# para que "/{sk_movie_id}" não capture essas rotas fixas.
 @router.get("/{sk_movie_id}", response_model=MovieDetail)
 async def get_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> MovieDetail:
     try:
         movie = await repository.get_movie_or_raise(db, sk_movie_id)
-    except MovieNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Filme não encontrado."
-        ) from exc
+    except MovieNotFoundError:
+        raise _not_found() from None
     return _movie_to_detail(movie)
 
 
 @router.post("", response_model=MovieDetail, status_code=status.HTTP_201_CREATED)
 async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db)) -> MovieDetail:
-    movie = await repository.create_movie(
-        db,
-        titulo=payload.titulo,
-        ano_lancamento=payload.ano_lancamento,
-        duracao_minutos=payload.duracao_minutos,
-        sinopse=payload.sinopse,
-        status_filme=payload.status_filme,
-        diretores=payload.diretores,
-        generos=payload.generos,
-    )
+    movie = await repository.create_movie(db, **payload.model_dump())
     return _movie_to_detail(movie)
 
 
@@ -135,20 +146,10 @@ async def update_movie(
 ) -> MovieDetail:
     try:
         movie = await repository.update_movie(
-            db,
-            sk_movie_id=sk_movie_id,
-            titulo=payload.titulo,
-            ano_lancamento=payload.ano_lancamento,
-            duracao_minutos=payload.duracao_minutos,
-            sinopse=payload.sinopse,
-            status_filme=payload.status_filme,
-            diretores=payload.diretores,
-            generos=payload.generos,
+            db, sk_movie_id=sk_movie_id, changes=payload.model_dump(exclude_unset=True)
         )
-    except MovieNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Filme não encontrado."
-        ) from exc
+    except MovieNotFoundError:
+        raise _not_found() from None
     return _movie_to_detail(movie)
 
 
@@ -156,28 +157,20 @@ async def update_movie(
 async def delete_movie(sk_movie_id: str, db: AsyncSession = Depends(get_db)) -> None:
     try:
         await repository.delete_movie(db, sk_movie_id)
-    except MovieNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Filme não encontrado."
-        ) from exc
+    except MovieNotFoundError:
+        raise _not_found() from None
 
 
 @router.post(
-    "/{sk_movie_id}/reviews", response_model=MovieDetail, status_code=status.HTTP_201_CREATED
+    "/{sk_movie_id}/reviews",
+    response_model=MovieDetail,
+    status_code=status.HTTP_201_CREATED,
 )
 async def add_review(
     sk_movie_id: str, payload: ReviewCreate, db: AsyncSession = Depends(get_db)
 ) -> MovieDetail:
     try:
-        movie = await repository.add_review(
-            db,
-            sk_movie_id=sk_movie_id,
-            nome=payload.nome,
-            nota_estrelas=payload.nota_estrelas,
-            comentario=payload.comentario,
-        )
-    except MovieNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Filme não encontrado."
-        ) from exc
+        movie = await repository.add_review(db, sk_movie_id=sk_movie_id, **payload.model_dump())
+    except MovieNotFoundError:
+        raise _not_found() from None
     return _movie_to_detail(movie)

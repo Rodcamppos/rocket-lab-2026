@@ -39,7 +39,7 @@ Projeto 02 - Atividade DEV/
 
 ## Como executar
 
-Use dois terminais: um para o backend e outro para o frontend. Os comandos abaixo são para PowerShell (Windows).
+Use dois terminais: um para o backend e outro para o frontend. Os comandos abaixo são para PowerShell (Windows); logo abaixo de cada bloco há a versão para Linux/macOS.
 
 ### 1. Backend
 
@@ -54,7 +54,18 @@ copy .env.example .env
 python -m alembic upgrade head
 ```
 
-Em Linux/macOS, ative a venv com `source venv/bin/activate` e copie o `.env` com `cp .env.example .env`.
+**Linux/macOS (bash/zsh):**
+
+```bash
+cd repo-base/backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env
+python -m alembic upgrade head
+python scripts/seed.py
+python -m uvicorn app.main:app --reload
+```
 
 Os 10 CSVs de carga inicial já estão em `repo-base/backend/data/` (o script os encontra mesmo dentro de subpastas). Popule o banco e suba a API:
 
@@ -80,6 +91,17 @@ npm run dev
 
 Acesse http://localhost:5173.
 
+**Linux/macOS:** `cd frontend && npm install && cp .env.example .env && npm run dev`.
+
+## Testes
+
+Os testes do backend usam um SQLite **em memória** (fixture em `tests/conftest.py`), então não alteram o `rocketlab.db` nem precisam do seed. Cobrem CRUD, avaliações e média, busca, paginação, filtros e insights.
+
+```bash
+cd repo-base/backend
+python -m pytest
+```
+
 ## Variáveis de ambiente
 
 **Backend** (`repo-base/backend/.env`):
@@ -102,10 +124,12 @@ Acesse http://localhost:5173.
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
-| GET | `/api/v1/movies` | Lista paginada (`page`, `page_size`) com busca por título (`search`) |
+| GET | `/api/v1/movies` | Lista paginada (`page`, `page_size`) com busca por título (`search`), filtros (`genero`, `ano`) e ordenação (`ordem`: `titulo`, `ano`, `nota`) |
+| GET | `/api/v1/movies/generos` | Lista os nomes dos gêneros |
+| GET | `/api/v1/movies/insights` | Estatísticas gerais (totais, gêneros mais bem avaliados, filmes mais lucrativos) |
 | POST | `/api/v1/movies` | Cadastra um filme |
 | GET | `/api/v1/movies/{sk_movie_id}` | Detalhes do filme, avaliações e média |
-| PATCH | `/api/v1/movies/{sk_movie_id}` | Atualiza um filme |
+| PATCH | `/api/v1/movies/{sk_movie_id}` | Atualização parcial: só os campos enviados mudam (`null` limpa campos opcionais) |
 | DELETE | `/api/v1/movies/{sk_movie_id}` | Remove um filme |
 | POST | `/api/v1/movies/{sk_movie_id}/reviews` | Adiciona avaliação (`nome`, `nota_estrelas` de 1 a 5, `comentario`) |
 | GET | `/health` | Verificação de saúde da API |
@@ -115,9 +139,14 @@ Acesse http://localhost:5173.
 | Rota | Tela |
 | --- | --- |
 | `/` | Catálogo com busca e paginação |
+| `/insights` | Estatísticas gerais |
 | `/movies/new` | Cadastro de filme |
 | `/movies/:id` | Detalhes, avaliações e formulário de nova avaliação |
 | `/movies/:id/edit` | Edição de filme |
+
+## Observação sobre os CSVs
+
+Os CSVs de carga somam mais de 400 MB, e o `bridge_movie_person.csv` tem ~97 MB (o GitHub bloqueia arquivos acima de 100 MB e avisa acima de 50 MB). Se o push falhar, use [Git LFS](https://git-lfs.com) para a pasta `repo-base/backend/data/` ou mantenha-a fora do repositório e documente onde baixar os arquivos. O `.gitignore` da raiz já exclui `venv/`, `node_modules/`, `.env` e `*.db`.
 
 ## Solução de problemas
 
