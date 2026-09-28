@@ -7,7 +7,7 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 
-# Variáveis de ambiente (os .env.example continuam versionados)
+# Variaveis de ambiente (os .env.example continuam versionados)
 .env
 .env.local
 
@@ -17,9 +17,6 @@ __pycache__/
 # Node
 node_modules/
 dist/
-
-# CSVs de carga inicial (fornecidos pelo curso, ~220 MB no total)
-Projeto 02 - Atividade DEV/repo-base/backend/data/
 
 # Sistema e editor
 .DS_Store
