@@ -10,7 +10,7 @@ export default function App() {
     <>
       <header className="header">
         <div className="header-in">
-          <Link to="/" className="brand">FILMOTECA</Link>
+          <Link to="/" className="brand">K.A. Filmes (Visaflix)</Link>
           <nav className="nav" style={{ display: 'flex', gap: 20 }}>
             <Link to="/">Catálogo</Link>
             <Link to="/insights">Insights</Link>

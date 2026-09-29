@@ -2,26 +2,38 @@
 venv/
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
-*.egg-info/
 
+<<<<<<< Updated upstream:Projeto 02 - Atividade DEV/.gitignore
 # Variáveis de ambiente (os .env.example continuam versionados)
 .env
 .env.local
 
 # Banco SQLite local
+=======
+# Banco local e variáveis de ambiente (use os .env.example)
+>>>>>>> Stashed changes:.gitignore
 *.db
+*.db-*
+*.sqlite3
+.env
 
 # Node
 node_modules/
 dist/
 
+<<<<<<< Updated upstream:Projeto 02 - Atividade DEV/.gitignore
 # CSVs de carga inicial (fornecidos pelo curso, ~220 MB no total)
 Projeto 02 - Atividade DEV/repo-base/backend/data/
 
 # Sistema e editor
 .DS_Store
 Thumbs.db
+=======
+# Sistema / editores
+.DS_Store
+.idea/
+>>>>>>> Stashed changes:.gitignore
 .vscode/
