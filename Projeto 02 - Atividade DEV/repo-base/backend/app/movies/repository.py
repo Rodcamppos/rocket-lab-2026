@@ -7,14 +7,23 @@ consulta paginada do catálogo.
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.movies.models import PERSON_TYPES, DimCompany, DimGenre, DimMovie, DimPerson, MovieReview
-
+from app.movies.models import (
+    PERSON_TYPES,
+    DimCompany,
+    DimGenre,
+    DimMovie,
+    DimPerson,
+    FactMoviePerformance,
+    MovieReview,
+    bridge_movie_genre,
+)
 
 class MovieNotFoundError(Exception):
     """Levantado quando um filme não é encontrado pelo sk_movie_id."""
@@ -79,11 +88,18 @@ async def _get_or_create_person(db: AsyncSession, nome: str, tipo: str) -> DimPe
 
 
 def _movie_detail_query():
-    return select(DimMovie).options(
-        selectinload(DimMovie.genres),
-        selectinload(DimMovie.people),
-        selectinload(DimMovie.companies),
-        selectinload(DimMovie.reviews),
+    # populate_existing: a sessão reaproveita objetos já carregados; sem isso, após
+    # criar/editar/avaliar, a releitura devolveria coleções antigas (ex.: sem a nova
+    # avaliação) e `created_at` (gerado pelo banco) não seria carregado.
+    return (
+        select(DimMovie)
+        .options(
+            selectinload(DimMovie.genres),
+            selectinload(DimMovie.people),
+            selectinload(DimMovie.companies),
+            selectinload(DimMovie.reviews),
+        )
+        .execution_options(populate_existing=True)
     )
 
 
@@ -127,37 +143,33 @@ async def create_movie(
 
 
 async def update_movie(
-    db: AsyncSession,
-    *,
-    sk_movie_id: str,
-    titulo: str | None,
-    ano_lancamento: int | None,
-    duracao_minutos: int | None,
-    sinopse: str | None,
-    status_filme: str | None,
-    diretores: list[str] | None,
-    generos: list[str] | None,
+    db: AsyncSession, *, sk_movie_id: str, changes: dict[str, Any]
 ) -> DimMovie:
+    """Aplica uma atualização parcial.
+
+    `changes` deve conter só os campos enviados pelo cliente
+    (`MovieUpdate.model_dump(exclude_unset=True)`). Assim é possível limpar campos
+    opcionais enviando `None`, sem confundir com "campo não enviado".
+    """
+
     movie = await get_movie_or_raise(db, sk_movie_id)
 
-    if titulo is not None:
-        movie.titulo = titulo
-    if ano_lancamento is not None:
-        movie.ano_lancamento = ano_lancamento
-    if duracao_minutos is not None:
-        movie.duracao_minutos = duracao_minutos
-    if sinopse is not None:
-        movie.sinopse = sinopse
-    if status_filme is not None:
-        movie.status_filme = status_filme
+    for campo in ("ano_lancamento", "duracao_minutos", "sinopse", "status_filme"):
+        if campo in changes:
+            setattr(movie, campo, changes[campo])
 
-    if generos is not None:
-        movie.genres = [await _get_or_create_genre(db, nome) for nome in generos]
+    if changes.get("titulo") is not None:
+        movie.titulo = changes["titulo"]
 
-    if diretores is not None:
+    if changes.get("generos") is not None:
+        movie.genres = [await _get_or_create_genre(db, nome) for nome in changes["generos"]]
+
+    if changes.get("diretores") is not None:
         # Preserva atores/roteiristas já vinculados; substitui só os diretores.
         outros_papeis = [p for p in movie.people if p.tipo_pessoa != "Diretor"]
-        novos_diretores = [await _get_or_create_person(db, nome, "Diretor") for nome in diretores]
+        novos_diretores = [
+            await _get_or_create_person(db, nome, "Diretor") for nome in changes["diretores"]
+        ]
         movie.people = outros_papeis + novos_diretores
 
     await db.commit()
@@ -165,8 +177,14 @@ async def update_movie(
 
 
 async def delete_movie(db: AsyncSession, sk_movie_id: str) -> None:
-    movie = await get_movie_or_raise(db, sk_movie_id)
-    await db.delete(movie)
+    await get_movie_or_raise(db, sk_movie_id)
+    # DELETE direto: as FKs têm ON DELETE CASCADE (e o PRAGMA foreign_keys está ligado),
+    # então avaliações, vínculos e métricas do filme saem junto. Evita carregar relações
+    # lazy (performance, reviews_summary), o que falharia numa sessão assíncrona.
+    await db.execute(
+        delete(DimMovie).where(DimMovie.sk_movie_id == sk_movie_id),
+        execution_options={"synchronize_session": False},
+    )
     await db.commit()
 
 
@@ -188,13 +206,24 @@ async def add_review(
 
 
 async def list_movies(
-    db: AsyncSession, *, page: int, page_size: int, search: str | None
+    db: AsyncSession,
+    *,
+    page: int,
+    page_size: int,
+    search: str | None,
+    genero: str | None = None,
+    ano: int | None = None,
+    ordem: str = "titulo",
 ) -> tuple[list[DimMovie], int, dict[str, tuple[float | None, int]]]:
-    """Retorna (filmes da página, total de filmes, {sk_movie_id: (média em estrelas, qtd)})."""
+    """Retorna (filmes da página, total, {sk_movie_id: (média em estrelas, qtd)})."""
 
     filters = []
     if search:
         filters.append(DimMovie.titulo.ilike(f"%{search.strip()}%"))
+    if ano:
+        filters.append(DimMovie.ano_lancamento == ano)
+    if genero:
+        filters.append(DimMovie.genres.any(func.lower(DimGenre.nome_genero) == genero.strip().lower()))
 
     count_stmt = select(func.count(DimMovie.sk_movie_id))
     for f in filters:
@@ -202,9 +231,22 @@ async def list_movies(
     total = (await db.execute(count_stmt)).scalar_one()
 
     list_stmt = select(DimMovie).options(selectinload(DimMovie.genres))
+    if ordem == "nota":
+        avg_sq = (
+            select(MovieReview.sk_movie_id.label("mid"), func.avg(MovieReview.nota).label("media"))
+            .group_by(MovieReview.sk_movie_id)
+            .subquery()
+        )
+        list_stmt = list_stmt.outerjoin(avg_sq, avg_sq.c.mid == DimMovie.sk_movie_id)
+        order_by = [avg_sq.c.media.desc().nulls_last(), DimMovie.titulo]
+    elif ordem == "ano":
+        order_by = [DimMovie.ano_lancamento.desc().nulls_last(), DimMovie.titulo]
+    else:
+        order_by = [DimMovie.titulo]
+
     for f in filters:
         list_stmt = list_stmt.where(f)
-    list_stmt = list_stmt.order_by(DimMovie.titulo).offset((page - 1) * page_size).limit(page_size)
+    list_stmt = list_stmt.order_by(*order_by).offset((page - 1) * page_size).limit(page_size)
 
     movies = list((await db.execute(list_stmt)).scalars().all())
 
@@ -224,3 +266,65 @@ async def list_movies(
             stats[sk_movie_id] = (nota_to_stars(avg_nota) if avg_nota is not None else None, qtd)
 
     return movies, total, stats
+
+
+async def list_genres(db: AsyncSession) -> list[str]:
+    rows = await db.execute(select(DimGenre.nome_genero).order_by(DimGenre.nome_genero))
+    return [nome for (nome,) in rows.all()]
+
+
+async def get_insights(db: AsyncSession) -> dict:
+    total_filmes = (await db.execute(select(func.count(DimMovie.sk_movie_id)))).scalar_one()
+    total_aval, media = (
+        await db.execute(
+            select(func.count(MovieReview.sk_movie_review_id), func.avg(MovieReview.nota))
+        )
+    ).one()
+
+    # Gêneros com melhor nota média dos usuários (mínimo de 30 avaliações).
+    gen_rows = await db.execute(
+        select(
+            DimGenre.nome_genero,
+            func.avg(MovieReview.nota),
+            func.count(MovieReview.sk_movie_review_id),
+        )
+        .join(bridge_movie_genre, bridge_movie_genre.c.sk_genre_id == DimGenre.sk_genre_id)
+        .join(MovieReview, MovieReview.sk_movie_id == bridge_movie_genre.c.sk_movie_id)
+        .group_by(DimGenre.sk_genre_id, DimGenre.nome_genero)
+        .having(func.count(MovieReview.sk_movie_review_id) >= 30)
+        .order_by(func.avg(MovieReview.nota).desc())
+        .limit(8)
+    )
+
+    # Filmes de maior lucro (orçamento a partir de US$ 1 milhão, para evitar dados sujos).
+    perf = FactMoviePerformance
+    luc_rows = await db.execute(
+        select(DimMovie.sk_movie_id, DimMovie.titulo, perf.orcamento_usd, perf.receita_usd, perf.lucro_usd)
+        .join(perf, perf.sk_movie_id == DimMovie.sk_movie_id)
+        .where(perf.orcamento_usd >= 1_000_000, perf.receita_usd.is_not(None))
+        .order_by(perf.lucro_usd.desc())
+        .limit(8)
+    )
+
+    def num(v: object) -> float | None:
+        return float(v) if v is not None else None
+
+    return {
+        "total_filmes": total_filmes,
+        "total_avaliacoes": total_aval,
+        "media_geral_estrelas": nota_to_stars(media) if media is not None else None,
+        "generos": [
+            {"nome": n, "nota_media_estrelas": nota_to_stars(a), "qtd": q}
+            for n, a, q in gen_rows.all()
+        ],
+        "lucrativos": [
+            {
+                "sk_movie_id": mid,
+                "titulo": titulo,
+                "orcamento_usd": num(orc),
+                "receita_usd": num(rec),
+                "lucro_usd": num(luc) or 0.0,
+            }
+            for mid, titulo, orc, rec, luc in luc_rows.all()
+        ],
+    }

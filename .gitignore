@@ -2,23 +2,25 @@
 venv/
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
-*.egg-info/
 
-# Variaveis de ambiente (os .env.example continuam versionados)
+# Variáveis de ambiente (os .env.example continuam versionados)
 .env
 .env.local
 
 # Banco SQLite local
 *.db
+*.db-*
+*.sqlite3
 
 # Node
 node_modules/
 dist/
 
-# Sistema e editor
+# Sistema e editores
 .DS_Store
 Thumbs.db
+.idea/
 .vscode/

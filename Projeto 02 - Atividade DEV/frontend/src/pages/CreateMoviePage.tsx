@@ -25,8 +25,8 @@ export default function CreateMoviePage() {
     try {
       const res = await createMovie({
         titulo,
-        ano_lancamento: Number(anoLancamento),
-        duracao_minutos: Number(duracaoMinutos),
+        ano_lancamento: anoLancamento === '' ? null : Number(anoLancamento),
+        duracao_minutos: duracaoMinutos === '' ? null : Number(duracaoMinutos),
         sinopse,
         status_filme: statusFilme,
         diretores: diretores

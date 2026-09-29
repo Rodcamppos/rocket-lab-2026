@@ -4,7 +4,22 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _clean_names(values: list[str] | None) -> list[str] | None:
+    """Remove espaços, descarta nomes vazios e duplicados (sem diferenciar maiúsculas)."""
+
+    if values is None:
+        return None
+    vistos: set[str] = set()
+    limpos: list[str] = []
+    for valor in values:
+        nome = valor.strip()
+        if nome and nome.lower() not in vistos:
+            vistos.add(nome.lower())
+            limpos.append(nome)
+    return limpos
 
 
 class GenreOut(BaseModel):
@@ -54,9 +69,27 @@ class MovieCreate(BaseModel):
     diretores: list[str] = Field(default_factory=list, description="Nomes dos diretores")
     generos: list[str] = Field(default_factory=list, description="Nomes dos gêneros")
 
+    @field_validator("titulo")
+    @classmethod
+    def _titulo_sem_espacos(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("O título não pode ser vazio")
+        return v
+
+    @field_validator("diretores", "generos")
+    @classmethod
+    def _limpar_nomes(cls, v: list[str]) -> list[str]:
+        return _clean_names(v) or []
+
 
 class MovieUpdate(BaseModel):
-    """Todos os campos são opcionais — só o que for enviado é atualizado."""
+    """Atualização parcial (PATCH).
+
+    Só os campos enviados são alterados. Campos opcionais (`ano_lancamento`,
+    `duracao_minutos`, `sinopse`, `status_filme`) aceitam `null` para serem limpos;
+    `titulo` não pode ser nulo. Use `model_dump(exclude_unset=True)` ao aplicar.
+    """
 
     titulo: str | None = Field(default=None, min_length=1, max_length=500)
     ano_lancamento: int | None = Field(default=None, ge=1870, le=2100)
@@ -66,10 +99,23 @@ class MovieUpdate(BaseModel):
     diretores: list[str] | None = None
     generos: list[str] | None = None
 
+    @field_validator("titulo")
+    @classmethod
+    def _titulo_valido(cls, v: str | None) -> str:
+        if v is None or not v.strip():
+            raise ValueError("O título não pode ser vazio nem nulo")
+        return v.strip()
+
+    @field_validator("diretores", "generos")
+    @classmethod
+    def _limpar_nomes(cls, v: list[str] | None) -> list[str] | None:
+        return _clean_names(v)
+
 
 class MovieListItem(BaseModel):
     sk_movie_id: str
     titulo: str
+    url_poster: str | None = None  # NOVO
     ano_lancamento: int | None
     status_filme: str | None
     generos: list[str]
@@ -103,3 +149,25 @@ class PaginatedMovies(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class GenreInsight(BaseModel):
+    nome: str
+    nota_media_estrelas: float
+    qtd: int
+
+
+class ProfitableMovie(BaseModel):
+    sk_movie_id: str
+    titulo: str
+    orcamento_usd: float | None
+    receita_usd: float | None
+    lucro_usd: float
+
+
+class InsightsOut(BaseModel):
+    total_filmes: int
+    total_avaliacoes: int
+    media_geral_estrelas: float | None
+    generos: list[GenreInsight]
+    lucrativos: list[ProfitableMovie]
