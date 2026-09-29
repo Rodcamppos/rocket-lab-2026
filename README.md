@@ -6,10 +6,12 @@ Aqui ficam reunidos os projetos práticos realizados ao longo do programa.
 
 ## Projetos
 
+Para rodar os projetos, é necessário seguir as instruções dentro de cada pasta (referente a cada atividade).
+
 | Pasta | Projeto | Descrição |
 |---|---|---|
 | [`Projeto 01/`](./Projeto%2001) | **CineData Analytics** | Pipeline de dados end-to-end no Databricks (PySpark/SQL), com Arquitetura Medalhão (Bronze, Silver, Gold), modelagem dimensional (Star Schema) e tabela de contexto para um assistente de IA (RAG), a partir de uma base de filmes intencionalmente suja e fragmentada. |
-| [`Projeto 02 - Atividade DEV/`](./Projeto%2002%20-%20Atividade%20DEV) | **K.A. Filmes (Visaflix)** | Aplicação full stack de avaliação de filmes, inspirada no Letterboxd. Frontend em Vite + React + TypeScript, backend em FastAPI (Python) com SQLAlchemy/Alembic e banco SQLite. Inclui catálogo paginado com busca e filtros, detalhes do filme, CRUD de filmes, avaliações com nota de 1 a 5 estrelas e média geral, página de Insights e testes automatizados do backend. Passo a passo para executar no [README do projeto](./Projeto%2002%20-%20Atividade%20DEV/README.md). |
+| [`Projeto 02 - Atividade DEV/`](./Projeto%2002%20-%20Atividade%20DEV) | **K.A. Filmes (Visaflix)** | Aplicação full stack de avaliação de filmes, inspirada no Letterboxd. Frontend em Vite + React + TypeScript, backend em FastAPI (Python) com SQLAlchemy/Alembic e banco SQLite. Inclui catálogo paginado com busca e filtros, detalhes do filme, CRUD de filmes, avaliações com nota de 1 a 5 estrelas e média geral, página de Insights e testes automatizados do backend. |
 
 > Novos projetos serão adicionados em pastas próprias (`Projeto 03/`, `Projeto 04/`, ...) conforme o programa avança.
 
