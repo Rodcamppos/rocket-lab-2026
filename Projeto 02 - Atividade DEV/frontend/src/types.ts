@@ -37,3 +37,17 @@ export interface MovieDetail extends Omit<MovieSummary, 'generos'> {
   produtoras: { sk_company_id: string; nome_produtora: string }[];
   reviews: Review[];
 }
+
+export interface Insights {
+  total_filmes: number;
+  total_avaliacoes: number;
+  media_geral_estrelas: number | null;
+  generos: { nome: string; nota_media_estrelas: number; qtd: number }[];
+  lucrativos: {
+    sk_movie_id: string;
+    titulo: string;
+    orcamento_usd: number | null;
+    receita_usd: number | null;
+    lucro_usd: number;
+  }[];
+}

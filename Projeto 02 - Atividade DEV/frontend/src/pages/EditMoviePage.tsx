@@ -23,10 +23,10 @@ export default function EditMoviePage() {
     if (!id) return;
     getMovie(id).then((movie) => {
       setTitulo(movie.titulo);
-      setAnoLancamento(movie.ano_lancamento);
-      setDuracaoMinutos(movie.duracao_minutos);
-      setSinopse(movie.sinopse);
-      setStatusFilme(movie.status_filme);
+      setAnoLancamento(movie.ano_lancamento ?? '');
+      setDuracaoMinutos(movie.duracao_minutos ?? '');
+      setSinopse(movie.sinopse ?? '');
+      setStatusFilme(movie.status_filme ?? STATUS_OPTIONS[2]);
       setDiretores(movie.diretores.map((d) => d.nome_pessoa).join(', '));
       setGeneros(movie.generos.map((g) => g.nome_genero).join(', '));
       setLoading(false);
@@ -42,8 +42,8 @@ export default function EditMoviePage() {
     try {
       await updateMovie(id, {
         titulo,
-        ano_lancamento: Number(anoLancamento),
-        duracao_minutos: Number(duracaoMinutos),
+        ano_lancamento: anoLancamento === '' ? null : Number(anoLancamento),
+        duracao_minutos: duracaoMinutos === '' ? null : Number(duracaoMinutos),
         sinopse,
         status_filme: statusFilme,
         diretores: diretores.split(',').map((d) => d.trim()).filter(Boolean),
