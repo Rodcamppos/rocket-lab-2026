@@ -22,7 +22,6 @@ from .guardrails import GuardrailError, validate_question, validate_sql
 from .prompts import build_system_prompt
 from .tools import AgentDeps, ExecutedQuery, executar_sql
 
-
 class AgentError(RuntimeError):
     """Falha ao obter resposta do modelo (cota, rede, modelos indisponíveis...)."""
 
@@ -45,6 +44,11 @@ def _build_model() -> OpenAIChatModel | FallbackModel:
         raise config.ConfigError(
             "OPENROUTER_API_KEY não definida. Copie .env.example para .env e preencha a chave "
             "(https://openrouter.ai/keys)."
+        )
+    if "SUA_CHAVE" in config.OPENROUTER_API_KEY:
+        raise config.ConfigError(
+            "O .env ainda tem a chave de exemplo. Gere a sua em https://openrouter.ai/keys "
+            "e substitua o valor de OPENROUTER_API_KEY."
         )
     provider = OpenAIProvider(
         base_url=config.OPENROUTER_BASE_URL, api_key=config.OPENROUTER_API_KEY
@@ -70,6 +74,14 @@ def get_agent() -> Agent[AgentDeps, str]:
             model_settings={"temperature": 0.0},
         )
     return _agent
+
+
+def _describe_error(exc: BaseException) -> str:
+    """Resume a causa real: o FallbackExceptionGroup esconde o erro de cada modelo."""
+    sub_errors = getattr(exc, "exceptions", None)
+    if sub_errors:
+        return "; ".join(_describe_error(sub) for sub in sub_errors)
+    return f"{type(exc).__name__}: {exc}"
 
 
 # --------------------------------------------------------------------------- memória
@@ -180,8 +192,9 @@ def ask(
         raise
     except Exception as exc:  # noqa: BLE001 - rede, 429 em todos os modelos, resposta inválida...
         raise AgentError(
-            f"Não consegui obter resposta do modelo ({type(exc).__name__}: {exc}). "
-            "Se for erro 429, aguarde um pouco ou confira sua cota em openrouter.ai/activity."
+            f"Não consegui obter resposta do modelo. Detalhes: {_describe_error(exc)}\n"
+            "Dicas: 401 = chave inválida/ausente no .env; 429 = modelo lotado ou cota diária "
+            "(confira em openrouter.ai/activity)."
         ) from exc
 
     answer_text = result.output

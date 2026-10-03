@@ -5,9 +5,11 @@
 """
 
 from __future__ import annotations
-
 import argparse
+import os
 import sys
+
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # esconde o banner do PydanticAI
 
 from src.cinedata_agent.agent import AgentAnswer, AgentError, ask
 from src.cinedata_agent.config import ConfigError

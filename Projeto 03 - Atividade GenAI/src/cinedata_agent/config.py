@@ -53,7 +53,7 @@ MODEL_NAMES: tuple[str, ...] = _list_env("OPENROUTER_MODELS", DEFAULT_MODELS)
 # --- Banco de dados (camada Gold) ---------------------------------------------
 DB_PATH: Path = _path_env("CINEROCKET_DB_PATH", PROJECT_ROOT / "data" / "cinerocket.db")
 MAX_ROWS: int = _int_env("MAX_ROWS", 50)
-QUERY_TIMEOUT_S: int = _int_env("QUERY_TIMEOUT_S", 30)
+QUERY_TIMEOUT_S: int = _int_env("QUERY_TIMEOUT_S", 120)
 
 # --- Agente -----------------------------------------------------------------------
 # Teto de chamadas ao modelo por pergunta (protege a cota de 50 req/dia).
