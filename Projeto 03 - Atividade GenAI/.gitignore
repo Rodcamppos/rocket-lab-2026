@@ -1,0 +1,19 @@
+# Segredos
+.env
+
+# Ambientes virtuais
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Dados (o banco tem ~555 MB e o GitHub recusa arquivos > 100 MB)
+data/*.db*
+data/answer_cache.json
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
