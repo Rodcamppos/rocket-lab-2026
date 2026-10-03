@@ -23,7 +23,14 @@ from .prompts import build_system_prompt
 from .tools import AgentDeps, ExecutedQuery, executar_sql
 
 class AgentError(RuntimeError):
-    """Falha ao obter resposta do modelo (cota, rede, modelos indisponíveis...)."""
+    """Falha ao obter resposta do modelo (cota, rede, modelos indisponíveis...).
+
+    ``queries`` guarda as consultas SQL que o agente chegou a tentar (útil para depurar).
+    """
+
+    def __init__(self, message: str, queries: list[ExecutedQuery] | None = None) -> None:
+        super().__init__(message)
+        self.queries = queries or []
 
 
 @dataclass
@@ -186,7 +193,8 @@ def ask(
         )
     except UsageLimitExceeded as exc:
         raise AgentError(
-            "O modelo precisou de chamadas demais para esta pergunta. Tente reformulá-la."
+            "O modelo precisou de chamadas demais para esta pergunta. Tente reformulá-la.",
+            queries=deps.executed,
         ) from exc
     except config.ConfigError:
         raise
@@ -194,14 +202,18 @@ def ask(
         raise AgentError(
             f"Não consegui obter resposta do modelo. Detalhes: {_describe_error(exc)}\n"
             "Dicas: 401 = chave inválida/ausente no .env; 429 = modelo lotado ou cota diária "
-            "(confira em openrouter.ai/activity)."
+            "(confira em openrouter.ai/activity).",
+            queries=deps.executed,
         ) from exc
 
     answer_text = result.output
     if cache_on and not history and deps.last_successful() is not None:
         _store_cache(question, answer_text, deps.executed)
 
-    usage = result.usage()
+    # PydanticAI 1.x: result.usage() é método; 2.x: result.usage é propriedade.
+    usage = result.usage
+    if callable(usage):
+        usage = usage()
     return AgentAnswer(
         text=answer_text,
         queries=deps.executed,

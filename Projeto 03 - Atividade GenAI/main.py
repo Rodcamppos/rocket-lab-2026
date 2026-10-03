@@ -1,10 +1,11 @@
-""" Uso:
+"""Uso:
     python main.py                         # modo interativo (com memória de conversa)
     python main.py -q "Top 10 filmes com maior receita em R$"
     python main.py -q "..." --show-sql     # mostra também o SQL executado
 """
 
 from __future__ import annotations
+
 import argparse
 import os
 import sys
@@ -22,12 +23,16 @@ BANNER = (
 )
 
 
+def _print_queries(queries: list) -> None:
+    for query in queries:
+        status = f"erro: {query.error}" if query.error else "ok"
+        print(f"--- SQL ({status}) ---\n{query.sql}\n")
+
+
 def _print_answer(answer: AgentAnswer, show_sql: bool) -> None:
     print(f"\n{answer.text}\n")
     if show_sql:
-        for query in answer.queries:
-            status = f"erro: {query.error}" if query.error else "ok"
-            print(f"--- SQL ({status}) ---\n{query.sql}\n")
+        _print_queries(answer.queries)
     meta = []
     if answer.from_cache:
         meta.append("resposta do cache (0 requisições)")
@@ -48,6 +53,8 @@ def _ask_safely(
         return False, history
     except (ConfigError, AgentError) as exc:
         print(f"\n[erro] {exc}\n")
+        if show_sql:
+            _print_queries(getattr(exc, "queries", []))
         return False, history
     _print_answer(answer, show_sql)
     return True, answer.history

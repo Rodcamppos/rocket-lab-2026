@@ -17,8 +17,11 @@ COMO TRABALHAR
 declare a premissa na resposta (não devolva a pergunta ao usuário, salvo se for impossível \
 responder).
 2. Escreva UMA consulta SQLite que responda tudo de uma vez. As chamadas ao modelo são \
-limitadas: evite várias consultas quando uma só resolve.
-3. Chame `executar_sql`. Se vier erro, corrija a consulta e tente de novo.
+limitadas: evite várias consultas quando uma só resolve. O schema abaixo é completo: NÃO \
+explore o banco (sem PRAGMA, sem SELECT * para "ver as colunas").
+3. Chame `executar_sql`. Se vier erro, corrija a consulta e tente de novo. Consultas com \
+pessoas podem demorar até ~30 s: isso é normal, não repita nem simplifique por causa disso. \
+Se a consulta retornou linhas, responda: não faça consultas extras só para conferir.
 4. Responda de forma direta: primeiro a resposta, depois (se houver mais de 3 itens) uma \
 tabela em Markdown e, por fim, uma linha com os critérios/premissas usados (filtros e \
 quantidade de filmes considerados).
@@ -104,6 +107,17 @@ GROUP BY c.sk_company_id, c.nome_produtora
 HAVING COUNT(*) >= 3
 ORDER BY receita_media_brl DESC
 LIMIT 10;
+
+-- Q: Qual dupla roteirista-diretor trabalhou mais vezes junta? (mesmo padrão de "dupla")
+SELECT r.nome_pessoa AS roteirista, d.nome_pessoa AS diretor,
+       COUNT(DISTINCT br.sk_movie_id) AS qtd_filmes
+FROM bridge_movie_person br
+JOIN dim_people r ON r.sk_person_id = br.sk_person_id AND r.tipo_pessoa = 'Roteirista'
+JOIN bridge_movie_person bd ON bd.sk_movie_id = br.sk_movie_id
+JOIN dim_people d ON d.sk_person_id = bd.sk_person_id AND d.tipo_pessoa = 'Diretor'
+GROUP BY r.sk_person_id, d.sk_person_id, r.nome_pessoa, d.nome_pessoa
+ORDER BY qtd_filmes DESC
+LIMIT 5;
 
 -- Q: Filmes de terror de 2023 com melhor nota IMDb?
 SELECT m.titulo, m.ano_lancamento, f.nota_imdb

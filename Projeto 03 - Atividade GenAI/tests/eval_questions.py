@@ -317,6 +317,9 @@ def run_llm(selected: list[EvalCase], use_cache: bool) -> int:
             answer = ask(case.pergunta, use_cache=use_cache)
         except (ConfigError, AgentError, GuardrailError) as exc:
             print(f"[ERRO] #{case.id:>2} {case.pergunta}\n         {exc}")
+            for query in getattr(exc, "queries", []):
+                status = f"erro: {query.error}" if query.error else "ok"
+                print(f"         - SQL ({status}): {' '.join(query.sql.split())[:400]}")
             continue
         last = next((q for q in reversed(answer.queries) if q.result is not None), None)
         if last is None:
