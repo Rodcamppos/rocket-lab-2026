@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
-
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1") 
 
 class ConfigError(RuntimeError):
     """Problema de configuração (chave de API ausente, banco não encontrado...)."""

@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pydantic_ai import Agent
+from pydantic_ai import exceptions as pai_exceptions
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
@@ -61,7 +62,25 @@ def _build_model() -> OpenAIChatModel | FallbackModel:
         base_url=config.OPENROUTER_BASE_URL, api_key=config.OPENROUTER_API_KEY
     )
     models = [OpenAIChatModel(name, provider=provider) for name in config.MODEL_NAMES]
-    return models[0] if len(models) == 1 else FallbackModel(*models)
+    if len(models) == 1:
+        return models[0]
+    return _fallback_model(models)
+
+
+def _fallback_model(models: list[OpenAIChatModel]) -> FallbackModel:
+    """Fallback também para respostas inválidas do provedor.
+
+    Modelos gratuitos às vezes devolvem finish_reason='error' no meio da resposta; o
+    PydanticAI trata isso como UnexpectedModelBehavior, que por padrão NÃO aciona o fallback.
+    """
+    names = ("ModelAPIError", "ModelHTTPError", "UnexpectedModelBehavior")
+    fallback_on = tuple(
+        exc_type for exc_type in (getattr(pai_exceptions, n, None) for n in names) if exc_type
+    )
+    try:
+        return FallbackModel(*models, fallback_on=fallback_on)
+    except TypeError:  # versão sem o parâmetro fallback_on: usa o comportamento padrão
+        return FallbackModel(*models)
 
 
 _agent: Agent[AgentDeps, str] | None = None
@@ -202,7 +221,8 @@ def ask(
         raise AgentError(
             f"Não consegui obter resposta do modelo. Detalhes: {_describe_error(exc)}\n"
             "Dicas: 401 = chave inválida/ausente no .env; 429 = modelo lotado ou cota diária "
-            "(confira em openrouter.ai/activity).",
+            "(confira em openrouter.ai/activity); 'finish_reason error' = falha temporária do "
+            "modelo gratuito (tente de novo em instantes).",
             queries=deps.executed,
         ) from exc
 
