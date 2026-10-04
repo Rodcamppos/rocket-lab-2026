@@ -225,7 +225,3 @@ Pontos encontrados ao explorar `cinerocket.db` e como o agente os trata:
 - A cota gratuita (50 requisições/dia) limita a quantidade de testes e a extensão da avaliação.
 - Não foram implementados: busca semântica sobre as sinopses (agente híbrido), interface gráfica
   e conexão com a camada Gold no Databricks.
-
-## Possíveis evoluções
-
-Busca semântica sobre as sinopses (agente híbrido), gráficos/interface web (FastAPI ou Streamlit), conexão com a camada Gold no Databricks.
