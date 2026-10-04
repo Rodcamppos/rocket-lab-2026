@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# os gêneros no banco estão em inglês, mas o usuário pode perguntar em português
 GENEROS_PT_EN: dict[str, str] = {
     "Ação": "Action",
     "Aventura": "Adventure",
@@ -50,6 +51,8 @@ dim_reviews (40.267; 1 linha por filme avaliado por usuários)
   sk_review_id, sk_movie_id, qtd_avaliacoes_usuarios, nota_media_usuarios (0-10)
 movie_reviews (43.666) - avaliações individuais:
   id, sk_movie_review_id, sk_movie_id, name, rating (0-10), text, created_at
+  ATENÇÃO: sk_movie_review_id é a chave da PRÓPRIA avaliação (hash) e NÃO liga a nenhuma
+  outra tabela; para ligar ao filme use sempre sk_movie_id.
 
 (Ignore a tabela alembic_version: é só controle de migração.)
 """

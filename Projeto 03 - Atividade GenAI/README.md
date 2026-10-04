@@ -169,6 +169,63 @@ Os dados têm particularidades que o prompt trata explicitamente:
 | `429` sem provider | Cota diária esgotada: aguarde o reset (21h BRT) |
 | Consulta excedeu o tempo limite | Aumente `QUERY_TIMEOUT_S` no `.env` |
 
+## Resultados da avaliação
+
+As 14 perguntas do enunciado foram executadas com o agente (modelos gratuitos do OpenRouter) e
+comparadas com o SQL esperado de cada uma (`tests/eval_questions.py`).
+
+| # | Categoria | Pergunta | Resultado |
+|---|---|---|---|
+| 1 | Bilheteria e Finanças | Top 10 filmes com maior receita em R$ | PASS |
+| 2 | Bilheteria e Finanças | Lucro médio por gênero (apenas filmes com receita informada) | PASS |
+| 3 | Bilheteria e Finanças | Filmes com maior margem de lucro (receita e orçamento informados) | PASS |
+| 4 | Popularidade e Engajamento | Os 5 filmes mais populares | PASS |
+| 5 | Popularidade e Engajamento | Maior divergência entre nota TMDB e nota IMDb | PASS |
+| 6 | Popularidade e Engajamento | Nota média IMDb por ano de lançamento | PASS |
+| 7 | Elenco e Equipe | Ator com mais participações nos últimos 5 anos | PASS |
+| 8 | Elenco e Equipe | Diretores com maior nota média (mínimo de 5 filmes) | PASS |
+| 9 | Elenco e Equipe | Dupla ator–diretor que mais trabalhou junta | PASS |
+| 10 | Gêneros e Produtoras | Quantidade de filmes por gênero | PASS |
+| 11 | Gêneros e Produtoras | Produtora com maior lucro total | PASS |
+| 12 | Gêneros e Produtoras | Gênero com maior margem de lucro média | PASS |
+| 13 | Avaliações dos Usuários | Filmes mais avaliados pelos usuários | PASS |
+| 14 | Avaliações dos Usuários | Filmes em que a nota média dos usuários mais diverge da IMDb | PASS |
+
+**Como ler estes resultados**
+
+- A comparação é **heurística**: confere os nomes do topo do ranking, a presença das categorias
+  esperadas ou o valor da métrica da primeira linha (em rankings com empates, onde mais de um filme
+  pode legitimamente ocupar o topo). Não substitui a leitura da resposta.
+- Cada pergunta consome tipicamente **2 requisições** (escrever o SQL + redigir a resposta) e até 4
+  quando há nova tentativa ou fallback entre modelos.
+- As perguntas foram avaliadas em rodadas separadas durante o desenvolvimento, com ajustes de prompt
+  e de schema entre elas (por exemplo: gêneros sempre em inglês dentro do SQL e esclarecimento de que
+  `movie_reviews.sk_movie_review_id` não liga a filmes). O resultado varia entre execuções por usar
+  modelos gratuitos.
+
+## Observações sobre os dados (camada Gold)
+
+Pontos encontrados ao explorar `cinerocket.db` e como o agente os trata:
+
+| Observação | Tratamento |
+|---|---|
+| Receita informada em 3.373 de 95.645 filmes (≈3,5%); orçamento em 7.926; ambos em 1.630 | `receita IS NOT NULL` em rankings/lucro; margem só com receita **e** orçamento |
+| `lucro_*` é NOT NULL, mas vale `-orçamento` (ou 0) sem receita e `receita` sem orçamento | Lucro só considerado com receita informada |
+| `nota_tmdb = 0` em 36.185 filmes e `nota_imdb` NULL em 12.674 | Tratados como "sem nota" |
+| Filmes com status `Planejado` (anos 2027 e 2029) com nota IMDb | Anomalia: o gabarito de #6 considera só `Lançado` |
+| `popularidade` com valores inteiros suspeitos no topo (ex.: 2020.0, 2019.0, 2018.0, 1969.0) | Possível artefato de carga; o agente reporta o que está na base |
+| Margem por filme com outliers extremos (até −5.409.086%) | Média por gênero acompanhada da margem agregada (ex.: *War* −534,88% pela média vs. 66,89% agregada) |
+| `idioma_original` sempre NULL | Coluna não utilizada |
+| Nomes que parecem erro de carga em `dim_people` (países/idiomas como pessoas) | Não tratado; sinalizado como limitação |
+| Base cobre lançamentos de 2016 a 2029, quase tudo até 2024 | "Últimos N anos" usa a data atual e informa o período efetivamente considerado |
+
+## Limitações e próximos passos
+
+- Modelos gratuitos variam em qualidade e disponibilidade; o fallback mitiga, mas não elimina falhas.
+- A cota gratuita (50 requisições/dia) limita a quantidade de testes e a extensão da avaliação.
+- Não foram implementados: busca semântica sobre as sinopses (agente híbrido), interface gráfica
+  e conexão com a camada Gold no Databricks.
+
 ## Possíveis evoluções
 
 Busca semântica sobre as sinopses (agente híbrido), gráficos/interface web (FastAPI ou Streamlit), conexão com a camada Gold no Databricks.

@@ -227,7 +227,9 @@ def ask(
         ) from exc
 
     answer_text = result.output
-    if cache_on and not history and deps.last_successful() is not None:
+    last = deps.last_successful()
+    # Resultado vazio costuma indicar filtro/join errado: não vale a pena cachear.
+    if cache_on and not history and last is not None and last.result.rows:
         _store_cache(question, answer_text, deps.executed)
 
     # PydanticAI 1.x: result.usage() é método; 2.x: result.usage é propriedade.

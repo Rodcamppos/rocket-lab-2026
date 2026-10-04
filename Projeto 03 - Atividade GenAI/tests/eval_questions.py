@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # permite rodar co
 from src.cinedata_agent.config import DB_PATH  # noqa: E402
 from src.cinedata_agent.db import QueryResult, execute_query  # noqa: E402
 from src.cinedata_agent.guardrails import validate_sql  # noqa: E402
+from src.cinedata_agent.schema import GENEROS_PT_EN  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,7 @@ CASES: list[EvalCase] = [
         SELECT m.ano_lancamento, ROUND(AVG(f.nota_imdb), 2) AS nota_media_imdb
         FROM fact_movies_performance f
         JOIN dim_movies m ON m.sk_movie_id = f.sk_movie_id
-        WHERE f.nota_imdb > 0
+        WHERE f.nota_imdb > 0 AND m.status_filme = 'Lançado'
         GROUP BY m.ano_lancamento
         ORDER BY m.ano_lancamento
         """,
@@ -254,8 +255,13 @@ def run_expected(case: EvalCase) -> QueryResult:
     return execute_query(validate_sql(case.sql), max_rows=200)
 
 
+# O agente pode devolver gêneros em português; normaliza para inglês antes de comparar.
+_PT_TO_EN = {pt.lower(): en.lower() for pt, en in GENEROS_PT_EN.items()}
+
+
 def _norm(values) -> tuple[str, ...]:
-    return tuple(str(v).strip().lower() for v in values)
+    texts = (str(v).strip().lower() for v in values)
+    return tuple(_PT_TO_EN.get(text, text) for text in texts)
 
 
 def evaluate(case: EvalCase, expected: QueryResult, actual: QueryResult) -> tuple[bool, str]:
@@ -331,6 +337,8 @@ def run_llm(selected: list[EvalCase], use_cache: bool) -> int:
         print(f"[{'PASS' if ok else 'FAIL'}] #{case.id:>2} ({origem}) {case.pergunta}")
         if detail:
             print(f"         {detail}")
+        if not ok:
+            print(f"         SQL do agente: {' '.join(last.sql.split())[:500]}")
         if not answer.from_cache and index < len(selected) - 1:
             time.sleep(3)  # respeita o limite de 20 requisições/minuto
     print(f"\n{passed}/{len(selected)} aprovadas.")
