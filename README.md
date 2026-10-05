@@ -12,12 +12,13 @@ Para rodar os projetos, é necessário seguir as instruções dentro de cada pas
 |---|---|---|
 | [`Projeto 01 - CineData Analytics/`] | **CineData Analytics** | Pipeline de dados end-to-end no Databricks (PySpark/SQL), com Arquitetura Medalhão (Bronze, Silver, Gold), modelagem dimensional (Star Schema) e tabela de contexto para um assistente de IA (RAG), a partir de uma base de filmes intencionalmente suja e fragmentada. |
 | [`Projeto 02 - Atividade DEV/`] | **K.A. Filmes (Visaflix)** | Aplicação full stack de avaliação de filmes, inspirada no Letterboxd. Frontend em Vite + React + TypeScript, backend em FastAPI (Python) com SQLAlchemy/Alembic e banco SQLite. Inclui catálogo paginado com busca e filtros, detalhes do filme, CRUD de filmes, avaliações com nota de 1 a 5 estrelas e média geral, página de Insights e testes automatizados do backend. |
+| [`Projeto 03 - Atividade GenAI/`] | **CineData Agent (Text-to-SQL)** | Agente de IA que responde, em português, perguntas sobre o catálogo de filmes consultando a camada Gold (SQLite) via Text-to-SQL. Desenvolvido em Python com PydanticAI e modelos gratuitos do OpenRouter (tool calling), com guardrails de somente leitura, fallback entre modelos, memória de conversa e cache de respostas. Inclui CLI, interface web em Streamlit com tabela e gráficos, e avaliação automatizada com as 14 perguntas do enunciado. |
 
-> Novos projetos serão adicionados em pastas próprias (`Projeto 03/`, `Projeto 04/`, ...) conforme o programa avança.
+> Novos projetos serão adicionados em pastas próprias (`Projeto 04/`, `Projeto 05/`, ...) conforme o programa avança.
 
 ## Sobre o Rocket Lab
 
-O Rocket Lab é um programa intensivo de capacitação da Visagio voltado à formação prática em Engenharia de Dados e desenvolvimento de software, com atividades estruturadas em torno de ferramentas e desafios reais do mercado.
+O Rocket Lab é um programa intensivo de capacitação da Visagio voltado à formação prática em Engenharia de Dados, desenvolvimento de software e IA generativa, com atividades estruturadas em torno de ferramentas e desafios reais do mercado.
 
 ## Autor
 
