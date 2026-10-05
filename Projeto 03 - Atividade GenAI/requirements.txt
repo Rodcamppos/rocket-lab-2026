@@ -1,4 +1,4 @@
-# framework de agentes (com suporte a modelos compatíveis com OpenAI, como o OpenRouter)
-pydantic-ai-slim[openai]>=1.0
-# leitura do arquivo .env
+# Framework de agentes (com suporte a modelos compatíveis com OpenAI, como o OpenRouter)
+pydantic-ai-slim[openai]>=2.54,<3
+# Leitura do arquivo .env
 python-dotenv>=1.0

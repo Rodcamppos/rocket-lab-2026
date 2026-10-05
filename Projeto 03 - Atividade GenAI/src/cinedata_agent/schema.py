@@ -1,6 +1,12 @@
+"""Descrição do schema da camada Gold, injetada no prompt do agente.
+
+O schema vai UMA vez no prompt (em vez de uma ferramenta que o modelo consulta a
+cada pergunta) para economizar chamadas na cota gratuita do OpenRouter.
+"""
+
 from __future__ import annotations
 
-# os gêneros no banco estão em inglês, mas o usuário pode perguntar em português
+# Gêneros no banco estão em inglês; o usuário pergunta em português.
 GENEROS_PT_EN: dict[str, str] = {
     "Ação": "Action",
     "Aventura": "Adventure",
@@ -49,6 +55,9 @@ bridge_movie_company - (sk_movie_id, sk_company_id): N:N filme <-> produtora
 
 dim_reviews (40.267; 1 linha por filme avaliado por usuários)
   sk_review_id, sk_movie_id, qtd_avaliacoes_usuarios, nota_media_usuarios (0-10)
+  Cada filme tem UMA linha e a contagem já vem pronta em qtd_avaliacoes_usuarios: NÃO use
+  COUNT(*) nesta tabela; para "mais avaliados" ordene por qtd_avaliacoes_usuarios e mostre
+  o titulo (JOIN dim_movies por sk_movie_id). nota_media_usuarios = média real de movie_reviews.rating.
 movie_reviews (43.666) - avaliações individuais:
   id, sk_movie_review_id, sk_movie_id, name, rating (0-10), text, created_at
   ATENÇÃO: sk_movie_review_id é a chave da PRÓPRIA avaliação (hash) e NÃO liga a nenhuma
